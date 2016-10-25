@@ -169,6 +169,9 @@ TF_panel.prototype.parseOptions = function( options ) {
 			{ name: 'Inferno',		colors: [ '#000004', '#420a68', '#932667', '#dd513a', '#fbbc21', '#fcffa4' ] },
 			{ name: 'Plasma',		colors: [ '#0d0887', '#6a00a8', '#b12a90', '#e16462', '#fca835', '#f0f921' ] },
 			{ name: 'Viridis',		colors: [ '#440154', '#414487', '#2a788e', '#22a884', '#7cd250', '#fde725' ] },
+			{ name: 'Organic',		colors: [ '#971904', '#ed4200', '#dfdc00', '#fffffd' ] },
+			{ name: 'Steel',		colors: [ '#bdc3c7', '#2c3e50' ] },
+			{ name: 'Fire',			colors: [ '#c02425', '#f0cb35' ] },
 			{ name: 'Greyscale',	colors: [ '#000000', '#888888', '#ffffff' ] }
 		];
 	options.gradientPresets = options.gradientPresets || {};
@@ -744,7 +747,7 @@ TF_widget.prototype.getOptions = function() {
 	options.controlPoints = [];
 	for( var index = 0; index < this.controlPoints.length; index++ ) {
 		var controlPoint = this.controlPoints[ index ];
-		options.controlPoints.push( { value: controlPoint.value, alpha: controlPoint.alpha, color: controlPoint.color } );
+		options.controlPoints.push( { value: controlPoint.value, alpha: controlPoint.alpha, color: Color.RGBtoHEX( controlPoint.color ) } );
 	}
 	return options;
 };
