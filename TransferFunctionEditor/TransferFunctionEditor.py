@@ -32,108 +32,110 @@ class TransferFunctionEditor(ScriptedLoadableModule):
 #
 
 class TransferFunctionEditorWidget(ScriptedLoadableModuleWidget):
-	"""Uses ScriptedLoadableModuleWidget base class, available at:
-	https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-	"""
-	
-	#found this method of connecting Python to JS
-	#http://pysnippet.blogspot.com/2010/01/calling-python-from-javascript-in-pyqts.html
-	#but couldn't (yet) make it work
-	# class StupidClass():
-		# """Simple class with one slot and one read-only property."""
-		# @qt.pyqtSlot(str)
-		# def showMessage(self, msg):
-			# """Open a message box and display the specified message."""
-			# qt.QMessageBox.information(None, "Info", msg)
-		
+  """Uses ScriptedLoadableModuleWidget base class, available at:
+  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+  """
 
-	def setup(self):
-		ScriptedLoadableModuleWidget.setup(self)
-		
-		# Instantiate and connect widgets ...
+  #found this method of connecting Python to JS
+  #http://pysnippet.blogspot.com/2010/01/calling-python-from-javascript-in-pyqts.html
+  #but couldn't (yet) make it work
+  # class StupidClass():
+    # """Simple class with one slot and one read-only property."""
+    # @qt.pyqtSlot(str)
+    # def showMessage(self, msg):
+      # """Open a message box and display the specified message."""
+      # qt.QMessageBox.information(None, "Info", msg)
 
-		#
-		# Parameters Area
-		#
-		parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-		parametersCollapsibleButton.text = "Parameters"
-		self.layout.addWidget(parametersCollapsibleButton)
 
-		self.webView = qt.QWebView()
-		self.webView.setFixedSize( 1000, 300 )
-		self.webView.setWindowTitle( 'Transfer Function Editor' )
-		self.webView.settings().setAttribute(qt.QWebSettings.DeveloperExtrasEnabled, True)
-		
-		#load HTML from local path
-		file_path = os.path.abspath( os.path.join( os.path.dirname( __file__ ), "Resources/web/TF.html" ) )
-		local_url = qt.QUrl.fromLocalFile( file_path )
-		self.webView.setUrl( local_url )
-		
-		#myObj = StupidClass()
-		#self.webView.page().mainFrame().addToJavaScriptWindowObject("pyObj", myObj)
-		
-		''' #COMMENT
-		window resizing (after window creation) currently has issues: 
-		window.onresize (in TF.html) apparently does not get called when slicer module window is resized
-		'''
-		
-		''' #COMMENT
-		histogram is still missing because of missing data input
-		calculate data for histogram with
-		var histogram = Statistics.calcHistogram( data ); //(in ui.cs, expects data array and optional options)
-		tf_panel.setHistogram( histogram )
-		histogram object should contain { numBins: number, bins: array[numBins], maxBinValue: number }
-		'''
-		self.webView.show()
-		self.webView.page().setLinkDelegationPolicy( qt.QWebPage.DelegateAllLinks )
-		#connect web view to click events within webpage
-		self.webView.connect( 'linkClicked(QUrl)', self.webViewCallback )
-		#frame = self.webView.page().mainFrame().evaluateJavaScript("console.log('loaded')")
+  def setup(self):
+    ScriptedLoadableModuleWidget.setup(self)
 
-		# Add vertical spacer
-		self.layout.addStretch(1)
-	def cleanup(self):
-		pass
-	def webViewCallback(self,qurl):
-		#url = qurl.toString()
-		#print(url)
-		#if url == 'updateTF':
-		self.updateTF()
-		pass
-	def updateTF(self):
-		vp = slicer.util.getNode('VolumeProperty')
-		colorTF = vp.GetColor()
-		opacityTF = vp.GetScalarOpacity()
-		
-		colorRange = colorTF.GetRange()
-		cR = colorRange[ 1 ] - colorRange[ 0 ]
-		opacityRange = opacityTF.GetRange()
-		cO = opacityRange[ 1 ] - opacityRange[ 0 ]
-		
-		colorTF.RemoveAllPoints() #probably shouldn't remove all of them at each update
-		opacityTF.RemoveAllPoints()
-		
-		tf_values = self.webView.page().mainFrame().evaluateJavaScript( 'tf_panel.getTF()' )
-		colorTF.SetColorSpaceToRGB()
-		
-		colorTF.AddRGBPoint( colorRange[ 0 ], 0, 0, 0 ) #add points for 0 and 1
-		colorTF.AddRGBPoint( colorRange[ 1 ], 0, 0, 0 )
-		
-		opacityTF.AddPoint( opacityRange[ 0 ], 0 ) #add points for 0 and 1
-		opacityTF.AddPoint( opacityRange[ 1 ], 0 )
-		
-		for( x, color ) in tf_values:
-			x = max( 0, min( x, 1 ) ) #prevent x from going out of range
-			
-			xC = colorRange[ 0 ] + ( cR * x ) #'denormalize' range
-			xO = opacityRange[ 0 ] + ( cO * x ) #'denormalize' range
-			r = color[ 'r' ] / 255 #normalize RGB
-			g = color[ 'g' ] / 255
-			b = color[ 'b' ] / 255
-			a = color[ 'a' ]
-			colorTF.AddRGBPoint( xC, r, g, b )
-			opacityTF.AddPoint( xO, a )		
-		pass
+    # Instantiate and connect widgets ...
+
+    #
+    # Parameters Area
+    #
+    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
+    parametersCollapsibleButton.text = "Parameters"
+    self.layout.addWidget(parametersCollapsibleButton)
+
+    self.webView = qt.QWebView()
+    self.webView.setFixedSize( 1000, 300 )
+    self.webView.setWindowTitle( 'Transfer Function Editor' )
+    self.webView.settings().setAttribute(qt.QWebSettings.DeveloperExtrasEnabled, True)
+
+    #load HTML from local path
+    file_path = os.path.abspath( os.path.join( os.path.dirname( __file__ ), "Resources/web/TF.html" ) )
+    local_url = qt.QUrl.fromLocalFile( file_path )
+    self.webView.setUrl( local_url )
+
+    #myObj = StupidClass()
+    #self.webView.page().mainFrame().addToJavaScriptWindowObject("pyObj", myObj)
+
+    ''' #COMMENT
+    window resizing (after window creation) currently has issues:
+    window.onresize (in TF.html) apparently does not get called when slicer module window is resized
+    '''
+
+    ''' #COMMENT
+    histogram is still missing because of missing data input
+    calculate data for histogram with
+    var histogram = Statistics.calcHistogram( data ); //(in ui.cs, expects data array and optional options)
+    tf_panel.setHistogram( histogram )
+    histogram object should contain { numBins: number, bins: array[numBins], maxBinValue: number }
+    '''
+    self.webView.show()
+    self.webView.page().setLinkDelegationPolicy( qt.QWebPage.DelegateAllLinks )
+    #connect web view to click events within webpage
+    self.webView.connect( 'linkClicked(QUrl)', self.webViewCallback )
+    #frame = self.webView.page().mainFrame().evaluateJavaScript("console.log('loaded')")
+
+    # Add vertical spacer
+    self.layout.addStretch(1)
+  def cleanup(self):
+    pass
+  def webViewCallback(self,qurl):
+    #url = qurl.toString()
+    #print(url)
+    #if url == 'updateTF':
+    self.updateTF()
+    pass
+  def updateTF(self):
+    vp = slicer.util.getNode('VolumeProperty')
+    wasModifying = vp.StartModify()
+    colorTF = vp.GetColor()
+    opacityTF = vp.GetScalarOpacity()
+
+    colorRange = colorTF.GetRange()
+    cR = colorRange[ 1 ] - colorRange[ 0 ]
+    opacityRange = opacityTF.GetRange()
+    cO = opacityRange[ 1 ] - opacityRange[ 0 ]
+
+    colorTF.RemoveAllPoints() #probably shouldn't remove all of them at each update
+    opacityTF.RemoveAllPoints()
+
+    tf_values = self.webView.page().mainFrame().evaluateJavaScript( 'tf_panel.getTF()' )
+    colorTF.SetColorSpaceToRGB()
+
+    colorTF.AddRGBPoint( colorRange[ 0 ], 0, 0, 0 ) #add points for 0 and 1
+    colorTF.AddRGBPoint( colorRange[ 1 ], 0, 0, 0 )
+
+    opacityTF.AddPoint( opacityRange[ 0 ], 0 ) #add points for 0 and 1
+    opacityTF.AddPoint( opacityRange[ 1 ], 0 )
+
+    for( x, color ) in tf_values:
+      x = max( 0, min( x, 1 ) ) #prevent x from going out of range
+
+      xC = colorRange[ 0 ] + ( cR * x ) #'denormalize' range
+      xO = opacityRange[ 0 ] + ( cO * x ) #'denormalize' range
+      r = color[ 'r' ] / 255 #normalize RGB
+      g = color[ 'g' ] / 255
+      b = color[ 'b' ] / 255
+      a = color[ 'a' ]
+      colorTF.AddRGBPoint( xC, r, g, b )
+      opacityTF.AddPoint( xO, a )
+    vp.EndModify(wasModifying)
+    pass
 #
 # TransferFunctionEditorLogic
 #
