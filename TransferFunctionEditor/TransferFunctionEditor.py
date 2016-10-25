@@ -60,7 +60,7 @@ class TransferFunctionEditorWidget(ScriptedLoadableModuleWidget):
 		self.layout.addWidget(parametersCollapsibleButton)
 
 		self.webView = qt.QWebView()
-		self.webView.setFixedSize( 1000, 300 )
+		self.webView.resize( 1000, 280 )
 		self.webView.setWindowTitle( 'Transfer Function Editor' )
 		self.webView.settings().setAttribute(qt.QWebSettings.DeveloperExtrasEnabled, True)
 		
@@ -71,12 +71,7 @@ class TransferFunctionEditorWidget(ScriptedLoadableModuleWidget):
 		
 		#myObj = StupidClass()
 		#self.webView.page().mainFrame().addToJavaScriptWindowObject("pyObj", myObj)
-		
-		''' #COMMENT
-		window resizing (after window creation) currently has issues: 
-		window.onresize (in TF.html) apparently does not get called when slicer module window is resized
-		'''
-		
+
 		''' #COMMENT
 		histogram is still missing because of missing data input
 		calculate data for histogram with
