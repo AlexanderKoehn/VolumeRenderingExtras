@@ -15,13 +15,12 @@ class TransferFunctionEditor(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "TransferFunctionEditor" # TODO make this more human readable by adding spaces
-    self.parent.categories = ["Examples"]
+    self.parent.title = "Transfer Function Editor" # TODO make this more human readable by adding spaces
+    self.parent.categories = ["Volume Rendering"]
     self.parent.dependencies = []
-    self.parent.contributors = ["John Doe (AnyWare Corp.)"] # replace with "Firstname Lastname (Organization)"
+    self.parent.contributors = ["Anna Fruehstueck", "Steve Pieper"] # replace with "Firstname Lastname (Organization)"
     self.parent.helpText = """
-    This is an example of scripted loadable module bundled in an extension.
-    It performs a simple thresholding on the input volume and optionally captures a screenshot.
+    This is a JavaScript-based Transfer Function Editor Module
     """
     self.parent.acknowledgementText = """
     This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc.
@@ -33,650 +32,108 @@ class TransferFunctionEditor(ScriptedLoadableModule):
 #
 
 class TransferFunctionEditorWidget(ScriptedLoadableModuleWidget):
-  """Uses ScriptedLoadableModuleWidget base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
+	"""Uses ScriptedLoadableModuleWidget base class, available at:
+	https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+	"""
+	
+	#found this method of connecting Python to JS
+	#http://pysnippet.blogspot.com/2010/01/calling-python-from-javascript-in-pyqts.html
+	#but couldn't (yet) make it work
+	# class StupidClass():
+		# """Simple class with one slot and one read-only property."""
+		# @qt.pyqtSlot(str)
+		# def showMessage(self, msg):
+			# """Open a message box and display the specified message."""
+			# qt.QMessageBox.information(None, "Info", msg)
+		
 
-  def setup(self):
-    ScriptedLoadableModuleWidget.setup(self)
+	def setup(self):
+		ScriptedLoadableModuleWidget.setup(self)
+		
+		# Instantiate and connect widgets ...
 
-    # Instantiate and connect widgets ...
+		#
+		# Parameters Area
+		#
+		parametersCollapsibleButton = ctk.ctkCollapsibleButton()
+		parametersCollapsibleButton.text = "Parameters"
+		self.layout.addWidget(parametersCollapsibleButton)
 
-    #
-    # Parameters Area
-    #
-    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = "Parameters"
-    self.layout.addWidget(parametersCollapsibleButton)
-    
-    self.webView = qt.QWebView()
-    self.webView.settings().setAttribute(qt.QWebSettings.DeveloperExtrasEnabled, True)
+		self.webView = qt.QWebView()
+		self.webView.setFixedSize( 1000, 300 )
+		self.webView.setWindowTitle( 'Transfer Function Editor' )
+		self.webView.settings().setAttribute(qt.QWebSettings.DeveloperExtrasEnabled, True)
+		
+		#load HTML from local path
+		file_path = os.path.abspath( os.path.join( os.path.dirname( __file__ ), "Resources/web/TF.html" ) )
+		local_url = qt.QUrl.fromLocalFile( file_path )
+		self.webView.setUrl( local_url )
+		
+		#myObj = StupidClass()
+		#self.webView.page().mainFrame().addToJavaScriptWindowObject("pyObj", myObj)
+		
+		''' #COMMENT
+		window resizing (after window creation) currently has issues: 
+		window.onresize (in TF.html) apparently does not get called when slicer module window is resized
+		'''
+		
+		''' #COMMENT
+		histogram is still missing because of missing data input
+		calculate data for histogram with
+		var histogram = Statistics.calcHistogram( data ); //(in ui.cs, expects data array and optional options)
+		tf_panel.setHistogram( histogram )
+		histogram object should contain { numBins: number, bins: array[numBins], maxBinValue: number }
+		'''
+		self.webView.show()
+		self.webView.page().setLinkDelegationPolicy( qt.QWebPage.DelegateAllLinks )
+		#connect web view to click events within webpage
+		self.webView.connect( 'linkClicked(QUrl)', self.webViewCallback )
+		#frame = self.webView.page().mainFrame().evaluateJavaScript("console.log('loaded')")
 
-    if False:
-
-      html = """
-      <a id="reslice" href="reslicing">Run reslicing test</a>
-      <p>
-      <a href="chart">Run chart test</a>
-      """
-      self.webView.setHtml(html)
-
-      self.webView.page().setLinkDelegationPolicy(qt.QWebPage.DelegateAllLinks)
-      self.webView.connect('linkClicked(QUrl)', self.webViewCallback)
-    else:
-      url = qt.QUrl('http://afruehstueck.github.io/TFonly.html')
-      self.webView.setUrl(url)
-
-    self.webView.show()
-
-    frame = self.webView.page().mainFrame().evaluateJavaScript("alert('loaded')")
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-
-  def cleanup(self):
-    pass
-
-  def webViewCallback(self,qurl):
-    url = qurl.toString()
-    print(url)
-    tf = f.evaluateJavaScript('tf_panel.getTF()')
-    print(tf)
-    if url == 'reslicing':
-      self.reslicing()
-    if url == 'chart':
-      self.chartTest()
-    pass
-
-  notes = '''
-  Python 2.7.10 (default, Sep 10 2015, 22:17:38) 
-[GCC 4.2.1 Compatible Apple LLVM 5.1 (clang-503.0.40)] on darwin
-
->>> slicer.modules.TransferFunctionEditorWidget.webView
-QWebView (QWebView at: 0x7fc23450cf90)
->>> slicer.modules.TransferFunctionEditorWidget.webView.page()
-QWebPage (QWebPage at: 0x7fc23450d2f0)
->>> p = slicer.modules.TransferFunctionEditorWidget.webView.page()
->>> f = p.mainFrame()
->>> f.evaluateJavaScript("alert('hoot')")
-reslicing
->>> page().mainFrame().evaluateJavaScript
-Traceback (most recent call last):
-  File "<console>", line 1, in <module>
-NameError: name 'page' is not defined
->>> slicer.modules.TransferFunctionEditorWidget.page().mainFrame()
-Traceback (most recent call last):
-  File "<console>", line 1, in <module>
-AttributeError: TransferFunctionEditorWidget instance has no attribute 'page'
->>> slicer.modules.TransferFunctionEditorWidget.webView.page().mainFrame()
-QWebFrame (QWebFrame at: 0x7fc2345bcec0)
->>> slicer.modules.TransferFunctionEditorWidget.webView.page().mainFrame()f = 
-  File "<console>", line 1
-    slicer.modules.TransferFunctionEditorWidget.webView.page().mainFrame()f =
-                                                                          ^
-SyntaxError: invalid syntax
->>> f = slicer.modules.TransferFunctionEditorWidget.webView.page().mainFrame()
->>> f.evaluateJavaScript('tf_panel.getTF()')
->>> f.evaluateJavaScript('tf_panel.getTF()')
->>> 
->>> f = slicer.modules.TransferFunctionEditorWidget.webView.page().mainFrame()
->>> f.evaluateJavaScript('tf_panel.getTF()')
-((0.3499, {u'a': 0.0, u'r': 0.0, u'b': 0.0, u'g': 0.0}), (0.35, {u'a': 0.35, u'r': 68.0, u'b': 84.0, u'g': 1.0}), (0.41, {u'a': 0.41, u'r': 65.0, u'b': 135.0, u'g': 68.0}), (0.47, {u'a': 0.47, u'r': 42.0, u'b': 142.0, u'g': 120.0}), (0.53, {u'a': 0.53, u'r': 34.0, u'b': 132.0, u'g': 168.0}), (0.59, {u'a': 0.59, u'r': 124.0, u'b': 80.0, u'g': 210.0}), (0.6499999999999999, {u'a': 0.6499999999999999, u'r': 253.0, u'b': 37.0, u'g': 231.0}), (0.6500999999999999, {u'a': 0.0, u'r': 0.0, u'b': 0.0, u'g': 0.0}))
->>> tf = f.evaluateJavaScript('tf_panel.getTF()')
->>> import json
->>> json.loads(tf)
-Traceback (most recent call last):
-  File "<console>", line 1, in <module>
-  File "/Users/pieper/slicer4/latest/Slicer-superbuild/python-install/lib/python2.7/json/__init__.py", line 338, in loads
-    return _default_decoder.decode(s)
-  File "/Users/pieper/slicer4/latest/Slicer-superbuild/python-install/lib/python2.7/json/decoder.py", line 366, in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-TypeError: expected string or buffer
->>> tf
-((0.3499, {u'a': 0.0, u'r': 0.0, u'b': 0.0, u'g': 0.0}), (0.35, {u'a': 0.35, u'r': 68.0, u'b': 84.0, u'g': 1.0}), (0.41, {u'a': 0.41, u'r': 65.0, u'b': 135.0, u'g': 68.0}), (0.47, {u'a': 0.47, u'r': 42.0, u'b': 142.0, u'g': 120.0}), (0.53, {u'a': 0.53, u'r': 34.0, u'b': 132.0, u'g': 168.0}), (0.59, {u'a': 0.59, u'r': 124.0, u'b': 80.0, u'g': 210.0}), (0.6499999999999999, {u'a': 0.6499999999999999, u'r': 253.0, u'b': 37.0, u'g': 231.0}), (0.6500999999999999, {u'a': 0.0, u'r': 0.0, u'b': 0.0, u'g': 0.0}))
->>> tf.__class__()
-()
->>> tt[0]
-Traceback (most recent call last):
-  File "<console>", line 1, in <module>
-NameError: name 'tt' is not defined
->>> tf[0]
-(0.3499, {u'a': 0.0, u'r': 0.0, u'b': 0.0, u'g': 0.0})
->>> tf[0][0]
-0.3499
->>> tf[0][1]
-{u'a': 0.0, u'r': 0.0, u'b': 0.0, u'g': 0.0}
->>> tf[0][1].a
-Traceback (most recent call last):
-  File "<console>", line 1, in <module>
-AttributeError: 'dict' object has no attribute 'a'
->>> tf[0][1]['a']
-0.0
->>> 
->>> 
->>> 
->>> vp = slicer.util.getNode('VolumeProperty')
->>> vp
-(vtkMRMLVolumePropertyNode)0x139dda1d0
->>> print(vp)
-vtkMRMLVolumePropertyNode (0x7fc235c2f330)
-  ID: vtkMRMLVolumePropertyNode1
-  Debug: Off
-  Modified Time: 1135484
-  Name: VolumeProperty
-  Description: (none)
-  SingletonTag: (none)
-  HideFromEditors: 0
-  Selectable: 1
-  Selected: 0
-  Indent:      0
-  Node references:
-    storage [storageNodeRef]: (none)
-    transform [transformNodeRef]: (none)
-  TransformNodeID: (none)
-  Debug: Off
-  Modified Time: 1109514
-  Reference Count: 1
-  Registered Events: (none)
-  Name = (none)
-  RestoreSelectionState = 0
-  VolumeProperty:     Debug: Off
-    Modified Time: 1135494
-    Reference Count: 2
-    Registered Events: 
-      Registered Observers:
-        vtkObserver (0x7fc234399e80)
-          Event: 3
-          EventName: StartEvent
-          Command: 0x7fc235c2fe70
-          Priority: 0
-          Tag: 2
-        vtkObserver (0x7fc23439a090)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc234399ff0
-          Priority: 0
-          Tag: 3
-        vtkObserver (0x7fc235c19890)
-          Event: 33
-          EventName: ModifiedEvent
-          Command: 0x7fc234399ff0
-          Priority: 0
-          Tag: 4
-        vtkObserver (0x7fc235c19ca0)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc235c19c00
-          Priority: 0
-          Tag: 5
-        vtkObserver (0x7fc235c19d00)
-          Event: 4
-          EventName: EndEvent
-          Command: 0x7fc235c19c00
-          Priority: 0
-          Tag: 6
-        vtkObserver (0x7fc2347ded30)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc235c19d70
-          Priority: 0
-          Tag: 7
-        vtkObserver (0x7fc2347ded90)
-          Event: 41
-          EventName: StartInteractionEvent
-          Command: 0x7fc235c19d70
-          Priority: 0
-          Tag: 8
-        vtkObserver (0x7fc2347df1e0)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc2347df140
-          Priority: 0
-          Tag: 9
-        vtkObserver (0x7fc2347df240)
-          Event: 42
-          EventName: InteractionEvent
-          Command: 0x7fc2347df140
-          Priority: 0
-          Tag: 10
-        vtkObserver (0x7fc23440d860)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc2347df3b0
-          Priority: 0
-          Tag: 11
-        vtkObserver (0x7fc23440d8c0)
-          Event: 43
-          EventName: EndInteractionEvent
-          Command: 0x7fc2347df3b0
-          Priority: 0
-          Tag: 12
-        vtkObserver (0x7fc235d6e170)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc235d6e100
-          Priority: 0
-          Tag: 13
-        vtkObserver (0x7fc235d6e1a0)
-          Event: 33
-          EventName: ModifiedEvent
-          Command: 0x7fc235d6e100
-          Priority: 0
-          Tag: 14
-        vtkObserver (0x7fc235d6eb50)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc235d6eab0
-          Priority: 0
-          Tag: 15
-        vtkObserver (0x7fc235d6ef00)
-          Event: 33
-          EventName: ModifiedEvent
-          Command: 0x7fc235d6eab0
-          Priority: 0
-          Tag: 16
-        vtkObserver (0x7fc235c2ffa0)
-          Event: 2
-          EventName: DeleteEvent
-          Command: 0x7fc235c2fe70
-          Priority: 0
-          Tag: 1
-    Independent Components: On
-    Interpolation Type: Linear
-    Properties for material 0
-    Color Channels: 3
-    RGB Color Transfer Function: 0x7fc23440d8f0
-    Scalar Opacity Transfer Function: 0x7fc2347b4260
-    Gradient Opacity Transfer Function: 0x7fc235c68da0
-    DisableGradientOpacity: Off
-    ComponentWeight: 1
-    Shade: 1
-        Ambient: 0.3
-        Diffuse: 0.6
-        Specular: 0.5
-        SpecularPower: 40
-    Properties for material 1
-    Color Channels: 1
-    Gray Color Transfer Function: 0
-    Scalar Opacity Transfer Function: 0
-    Gradient Opacity Transfer Function: 0
-    DisableGradientOpacity: Off
-    ComponentWeight: 1
-    Shade: 0
-        Ambient: 0.1
-        Diffuse: 0.7
-        Specular: 0.2
-        SpecularPower: 10
-    Properties for material 2
-    Color Channels: 1
-    Gray Color Transfer Function: 0
-    Scalar Opacity Transfer Function: 0
-    Gradient Opacity Transfer Function: 0
-    DisableGradientOpacity: Off
-    ComponentWeight: 1
-    Shade: 0
-        Ambient: 0.1
-        Diffuse: 0.7
-        Specular: 0.2
-        SpecularPower: 10
-    Properties for material 3
-    Color Channels: 1
-    Gray Color Transfer Function: 0
-    Scalar Opacity Transfer Function: 0
-    Gradient Opacity Transfer Function: 0
-    DisableGradientOpacity: Off
-    ComponentWeight: 1
-    Shade: 0
-        Ambient: 0.1
-        Diffuse: 0.7
-        Specular: 0.2
-        SpecularPower: 10
-
-
->>> vp.GetColor()
-(vtkColorTransferFunction)0x139dda170
->>> colortf = vp.GetColor()
->>> print(colortf)
-vtkColorTransferFunction (0x7fc23440d8f0)
-  Debug: Off
-  Modified Time: 1134291
-  Reference Count: 6
-  Registered Events: 
-    Registered Observers:
-      vtkObserver (0x7fc235cc7a30)
-        Event: 3
-        EventName: StartEvent
-        Command: 0x7fc23440dda0
-        Priority: 0
-        Tag: 2
-      vtkObserver (0x7fc235cc7e40)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc235cc7da0
-        Priority: 0
-        Tag: 3
-      vtkObserver (0x7fc2347f2720)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc235cc7da0
-        Priority: 0
-        Tag: 4
-      vtkObserver (0x7fc2347f2b30)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347f2a90
-        Priority: 0
-        Tag: 5
-      vtkObserver (0x7fc2347f2b90)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc2347f2a90
-        Priority: 0
-        Tag: 6
-      vtkObserver (0x7fc2347f2da0)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347f2d00
-        Priority: 0
-        Tag: 7
-      vtkObserver (0x7fc2347f2e00)
-        Event: 41
-        EventName: StartInteractionEvent
-        Command: 0x7fc2347f2d00
-        Priority: 0
-        Tag: 8
-      vtkObserver (0x7fc2347e0b30)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347e0a90
-        Priority: 0
-        Tag: 9
-      vtkObserver (0x7fc2347e0b90)
-        Event: 42
-        EventName: InteractionEvent
-        Command: 0x7fc2347e0a90
-        Priority: 0
-        Tag: 10
-      vtkObserver (0x7fc2347b41d0)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b4130
-        Priority: 0
-        Tag: 11
-      vtkObserver (0x7fc2347b4230)
-        Event: 43
-        EventName: EndInteractionEvent
-        Command: 0x7fc2347b4130
-        Priority: 0
-        Tag: 12
-      vtkObserver (0x7fc235d70080)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc235d70010
-        Priority: 0
-        Tag: 13
-      vtkObserver (0x7fc235d705a0)
-        Event: 43
-        EventName: EndInteractionEvent
-        Command: 0x7fc235d70010
-        Priority: 0
-        Tag: 14
-      vtkObserver (0x7fc235d709b0)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc235d70940
-        Priority: 0
-        Tag: 15
-      vtkObserver (0x7fc235d70d30)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc235d70940
-        Priority: 0
-        Tag: 16
-      vtkObserver (0x7fc235d71dc0)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc23588be60
-        Priority: 0
-        Tag: 17
-      vtkObserver (0x7fc235d71df0)
-        Event: 3
-        EventName: StartEvent
-        Command: 0x7fc23588c930
-        Priority: 0
-        Tag: 18
-      vtkObserver (0x7fc235d71e20)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc23588c930
-        Priority: 0
-        Tag: 19
-      vtkObserver (0x7fc235d71e50)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc23588c930
-        Priority: 0
-        Tag: 20
-      vtkObserver (0x7fc235d71cd0)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc23588e8c0
-        Priority: 0
-        Tag: 21
-      vtkObserver (0x7fc235d71eb0)
-        Event: 3
-        EventName: StartEvent
-        Command: 0x7fc23588f4a0
-        Priority: 0
-        Tag: 22
-      vtkObserver (0x7fc235d71ee0)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc23588f4a0
-        Priority: 0
-        Tag: 23
-      vtkObserver (0x7fc235d71f10)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc23588f4a0
-        Priority: 0
-        Tag: 24
-      vtkObserver (0x7fc23440de70)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc23440dda0
-        Priority: 0
-        Tag: 1
-  Alpha: 1
-  VectorMode: Component
-  VectorComponent: 0
-  VectorSize: -1
-  IndexedLookup: OFF
-  AnnotatedValues: 0 entries.
-  Size: 7
-  Clamping: On
-  Color Space: RGB
-  Scale: Linear
-  Range: 0 to 0.995081
-  AllowDuplicateScalars: 0
-  NanColor: 0.5, 0, 0
-  BelowRangeColor: (0, 0, 0)
-  UseBelowRangeColor: OFF
-  ABoveRangeColor: (1, 1, 1)
-  UseAboveRangeColor: OFF
-    0 X: 0 R: 0 G: 0 B: 0 Sharpness: 0 Midpoint: 0.5
-    1 X: 2.22507e-308 R: 0 G: 0 B: 0 Sharpness: 0 Midpoint: 0.5
-    2 X: 0.249746 R: 0.25098 G: 0.25098 B: 0.25098 Sharpness: 0 Midpoint: 0.5
-    3 X: 0.499492 R: 0.501961 G: 0.501961 B: 0.501961 Sharpness: 0 Midpoint: 0.5
-    4 X: 0.749238 R: 0.752941 G: 0.752941 B: 0.752941 Sharpness: 0 Midpoint: 0.5
-    5 X: 0.995081 R: 1 G: 1 B: 1 Sharpness: 0 Midpoint: 0.5
-    6 X: 0.995081 R: 1 G: 1 B: 1 Sharpness: 0 Midpoint: 0.5
-
-
->>> colortf.AddRGBPoint()
-Traceback (most recent call last):
-  File "<console>", line 1, in <module>
-TypeError: no overloads of AddRGBPoint() take 0 arguments
->>> so = vp.GetScalarOpacity()
->>> print(so)
-vtkPiecewiseFunction (0x7fc2347b4260)
-  Debug: Off
-  Modified Time: 1134253
-  Reference Count: 4
-  Registered Events: 
-    Registered Observers:
-      vtkObserver (0x7fc2347b4b70)
-        Event: 3
-        EventName: StartEvent
-        Command: 0x7fc2347b4a40
-        Priority: 0
-        Tag: 2
-      vtkObserver (0x7fc2347b4f80)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b4ee0
-        Priority: 0
-        Tag: 3
-      vtkObserver (0x7fc2347b4fe0)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc2347b4ee0
-        Priority: 0
-        Tag: 4
-      vtkObserver (0x7fc2347b53f0)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b5350
-        Priority: 0
-        Tag: 5
-      vtkObserver (0x7fc2347b5450)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc2347b5350
-        Priority: 0
-        Tag: 6
-      vtkObserver (0x7fc2347b5860)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b57c0
-        Priority: 0
-        Tag: 7
-      vtkObserver (0x7fc2347b58c0)
-        Event: 41
-        EventName: StartInteractionEvent
-        Command: 0x7fc2347b57c0
-        Priority: 0
-        Tag: 8
-      vtkObserver (0x7fc2347b5d10)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b5c70
-        Priority: 0
-        Tag: 9
-      vtkObserver (0x7fc2347b5d70)
-        Event: 42
-        EventName: InteractionEvent
-        Command: 0x7fc2347b5c70
-        Priority: 0
-        Tag: 10
-      vtkObserver (0x7fc235c68d10)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b60e0
-        Priority: 0
-        Tag: 11
-      vtkObserver (0x7fc235c68d70)
-        Event: 43
-        EventName: EndInteractionEvent
-        Command: 0x7fc2347b60e0
-        Priority: 0
-        Tag: 12
-      vtkObserver (0x7fc235d6f640)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc235d6f600
-        Priority: 0
-        Tag: 13
-      vtkObserver (0x7fc235d6f670)
-        Event: 43
-        EventName: EndInteractionEvent
-        Command: 0x7fc235d6f600
-        Priority: 0
-        Tag: 14
-      vtkObserver (0x7fc235d6fdf0)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc235d6fd80
-        Priority: 0
-        Tag: 15
-      vtkObserver (0x7fc235d6fe20)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc235d6fd80
-        Priority: 0
-        Tag: 16
-      vtkObserver (0x7fc235d71d00)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc23588be60
-        Priority: 0
-        Tag: 17
-      vtkObserver (0x7fc235d71d30)
-        Event: 3
-        EventName: StartEvent
-        Command: 0x7fc23588c930
-        Priority: 0
-        Tag: 18
-      vtkObserver (0x7fc235d71d60)
-        Event: 33
-        EventName: ModifiedEvent
-        Command: 0x7fc23588c930
-        Priority: 0
-        Tag: 19
-      vtkObserver (0x7fc235d71d90)
-        Event: 4
-        EventName: EndEvent
-        Command: 0x7fc23588c930
-        Priority: 0
-        Tag: 20
-      vtkObserver (0x7fc2347b4b10)
-        Event: 2
-        EventName: DeleteEvent
-        Command: 0x7fc2347b4a40
-        Priority: 0
-        Tag: 1
-  Information: 0x7fc2347b42e0
-  Data Released: False
-  Global Release Data: Off
-  UpdateTime: 0
-  Field Data:
-    Debug: Off
-    Modified Time: 1134251
-    Reference Count: 1
-    Registered Events: (none)
-    Number Of Arrays: 0
-    Number Of Components: 0
-    Number Of Tuples: 0
-  Clamping: 1
-  Range: [0,0.995081]
-  Function Points: 4
-    0 X: 0 Y: 0 Sharpness: 0 Midpoint: 0.5
-    1 X: 2.22507e-308 Y: 0 Sharpness: 0 Midpoint: 0.5
-    2 X: 0.995081 Y: 1 Sharpness: 0 Midpoint: 0.5
-    3 X: 0.995081 Y: 1 Sharpness: 0 Midpoint: 0.5
-  AllowDuplicateScalars: 0
-
-
->>> 
->>> so
-(vtkPiecewiseFunction)0x139dda350
->>> so.RemoveAllPoints()
->>> so.AddPoint(0, 0)
-0
->>> so.AddPoint(1, 0.2)
-
-  '''
+		# Add vertical spacer
+		self.layout.addStretch(1)
+	def cleanup(self):
+		pass
+	def webViewCallback(self,qurl):
+		#url = qurl.toString()
+		#print(url)
+		#if url == 'updateTF':
+		self.updateTF()
+		pass
+	def updateTF(self):
+		vp = slicer.util.getNode('VolumeProperty')
+		colorTF = vp.GetColor()
+		opacityTF = vp.GetScalarOpacity()
+		
+		colorRange = colorTF.GetRange()
+		cR = colorRange[ 1 ] - colorRange[ 0 ]
+		opacityRange = opacityTF.GetRange()
+		cO = opacityRange[ 1 ] - opacityRange[ 0 ]
+		
+		colorTF.RemoveAllPoints() #probably shouldn't remove all of them at each update
+		opacityTF.RemoveAllPoints()
+		
+		tf_values = self.webView.page().mainFrame().evaluateJavaScript( 'tf_panel.getTF()' )
+		colorTF.SetColorSpaceToRGB()
+		
+		colorTF.AddRGBPoint( colorRange[ 0 ], 0, 0, 0 ) #add points for 0 and 1
+		colorTF.AddRGBPoint( colorRange[ 1 ], 0, 0, 0 )
+		
+		opacityTF.AddPoint( opacityRange[ 0 ], 0 ) #add points for 0 and 1
+		opacityTF.AddPoint( opacityRange[ 1 ], 0 )
+		
+		for( x, color ) in tf_values:
+			x = max( 0, min( x, 1 ) ) #prevent x from going out of range
+			
+			xC = colorRange[ 0 ] + ( cR * x ) #'denormalize' range
+			xO = opacityRange[ 0 ] + ( cO * x ) #'denormalize' range
+			r = color[ 'r' ] / 255 #normalize RGB
+			g = color[ 'g' ] / 255
+			b = color[ 'b' ] / 255
+			a = color[ 'a' ]
+			colorTF.AddRGBPoint( xC, r, g, b )
+			opacityTF.AddPoint( xO, a )		
+		pass
 #
 # TransferFunctionEditorLogic
 #
